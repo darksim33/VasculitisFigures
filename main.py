@@ -1,5 +1,8 @@
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy import stats
 
 
 def load_data():
@@ -39,12 +42,51 @@ def calculate_side_means(df):
     return side_means
 
 
+def create_scatter_plot(
+    ax, data, x_position, color, label, jitter_range=0.05, x_offset=-0.25
+):
+    """Create a scatter plot with jitter at the specified position."""
+    if len(data) > 0:
+        jitter = np.random.uniform(-jitter_range, jitter_range, size=len(data))
+        ax.scatter(
+            [x_position + x_offset + j for j in jitter],
+            data,
+            label=label,
+            color=color,
+            alpha=0.7,
+            s=100,
+            marker="o",
+        )
+
+
+def create_violin_plot(
+    ax, data, x_position, color, alpha=0.3, scaling=0.3, x_offset=0.05
+):
+    """Create a half violin plot at the specified position."""
+    if len(data) > 0:
+        kde = stats.gaussian_kde(data)
+        data_range = np.linspace(data.min(), data.max(), 100)
+        density = kde(data_range)
+
+        # Scale the density
+        density = density / density.max() * scaling
+
+        # Plot the half violin
+        ax.fill_betweenx(
+            data_range,
+            x_position + x_offset,  # Start from center-right
+            x_position + x_offset + density,  # Extend right
+            color=color,
+            alpha=alpha,
+        )
+
+
 def create_adc_scatter_plot(mean_df):
     # Keep original groups but rename 'control' to 'healthy' for clarity
     mean_df["display_group"] = mean_df["group"].apply(
         lambda x: "healthy" if x == "control" else x
     )
-    
+
     # Create a combined disease category while preserving original groups for coloring
     mean_df["position_group"] = mean_df["group"].apply(
         lambda x: "healthy" if x == "control" else "disease"
@@ -65,85 +107,66 @@ def create_adc_scatter_plot(mean_df):
     # Define colors for each original group
     colors = {"healthy": "green", "vasc": "orange", "rpgn": "blue"}
 
-    # Import numpy for random jitter
-    import numpy as np
-    
     # Plot each group with horizontal jitter
     for roi in ["cortex", "medulla"]:
-        # First, plot the healthy group
-        healthy_data = plot_df[(plot_df["roi"] == roi) & (plot_df["display_group"] == "healthy")]
+        # Plot the healthy group - scatter on left, violin on right
+        healthy_data = plot_df[
+            (plot_df["roi"] == roi) & (plot_df["display_group"] == "healthy")
+        ]
         if len(healthy_data) > 0:
-            # Add random jitter to x-positions (± 0.15)
-            jitter = np.random.uniform(-0.15, 0.15, size=len(healthy_data))
-            ax.scatter(
-                [positions[roi]["healthy"] + j for j in jitter],  # x-positions with jitter
-                healthy_data["adc"],  # y-values (adc)
-                label="healthy" if roi == "cortex" else None,  # Only add to legend once
-                color=colors["healthy"],  # color based on group
-                alpha=0.7,  # transparency
-                s=100,  # marker size
-                marker="o"  # use circle marker for all points
-            )
-            
-            # Add half violin plot for healthy
-            from scipy import stats
-            
-            # Calculate kernel density
-            kde = stats.gaussian_kde(healthy_data["adc"])
-            adc_range = np.linspace(healthy_data["adc"].min(), healthy_data["adc"].max(), 100)
-            density = kde(adc_range)
-            
-            # Scale the density (adjust the scaling factor as needed)
-            scaling = 0.3
-            density = density / density.max() * scaling
-            
-            # Plot the half violin on the left side
-            ax.fill_betweenx(
-                adc_range,
-                positions[roi]["healthy"] - density,
-                positions[roi]["healthy"],
+            # Create scatter plot for healthy group
+            create_scatter_plot(
+                ax=ax,
+                data=healthy_data["adc"],
+                x_position=positions[roi]["healthy"],
                 color=colors["healthy"],
-                alpha=0.3
+                label="healthy" if roi == "cortex" else None,
+                jitter_range=0.05,
+                x_offset=-0.05,
             )
-        
-        # Then plot disease groups (vasc and rpgn) at the same position but with different colors
-        combined_disease_data = plot_df[(plot_df["roi"] == roi) & (plot_df["position_group"] == "disease")]
-        individual_disease_points = []
-        
+
+            # Create violin plot for healthy group
+            create_violin_plot(
+                ax=ax,
+                data=healthy_data["adc"],
+                x_position=positions[roi]["healthy"],
+                color=colors["healthy"],
+                alpha=0.3,
+                scaling=0.3,
+                x_offset=0.05,
+            )
+
+        # Plot disease groups - scatter on left, violin on right
+        combined_disease_data = plot_df[
+            (plot_df["roi"] == roi) & (plot_df["position_group"] == "disease")
+        ]
+
+        # Create scatter plots for individual disease groups
         for disease in ["vasc", "rpgn"]:
-            disease_data = plot_df[(plot_df["roi"] == roi) & (plot_df["display_group"] == disease)]
+            disease_data = plot_df[
+                (plot_df["roi"] == roi) & (plot_df["display_group"] == disease)
+            ]
             if len(disease_data) > 0:
-                # Add random jitter to x-positions (± 0.15)
-                jitter = np.random.uniform(-0.15, 0.15, size=len(disease_data))
-                ax.scatter(
-                    [positions[roi]["disease"] + j for j in jitter],  # x-positions with jitter
-                    disease_data["adc"],  # y-values (adc)
-                    label=disease if roi == "cortex" else None,  # Only add to legend once
-                    color=colors[disease],  # color based on original group
-                    alpha=0.7,  # transparency
-                    s=100,  # marker size
-                    marker="o"  # use circle marker for all points
+                create_scatter_plot(
+                    ax=ax,
+                    data=disease_data["adc"],
+                    x_position=positions[roi]["disease"],
+                    color=colors[disease],
+                    label=disease if roi == "cortex" else None,
+                    jitter_range=0.05,
+                    x_offset=-0.05,
                 )
-                individual_disease_points.extend(disease_data["adc"])
-        
-        # Add half violin plot for combined disease
+
+        # Create violin plot for combined disease groups
         if len(combined_disease_data) > 0:
-            # Calculate kernel density
-            kde = stats.gaussian_kde(combined_disease_data["adc"])
-            adc_range = np.linspace(combined_disease_data["adc"].min(), combined_disease_data["adc"].max(), 100)
-            density = kde(adc_range)
-            
-            # Scale the density (adjust the scaling factor as needed)
-            scaling = 0.3
-            density = density / density.max() * scaling
-            
-            # Plot the half violin on the right side
-            ax.fill_betweenx(
-                adc_range,
-                positions[roi]["disease"],
-                positions[roi]["disease"] + density,
-                color="grey",  # Using grey for combined disease
-                alpha=0.3
+            create_violin_plot(
+                ax=ax,
+                data=combined_disease_data["adc"],
+                x_position=positions[roi]["disease"],
+                color="grey",
+                alpha=0.3,
+                scaling=0.3,
+                x_offset=0.05,
             )
 
     # Customize the plot
@@ -160,10 +183,20 @@ def create_adc_scatter_plot(mean_df):
     # Show grid
     ax.grid(True, linestyle="--", alpha=0.7)
 
-    # Save and show the plot
+    # Save and optionally show the plot
     plt.tight_layout()
     plt.savefig("adc_scatter_plot.png", dpi=300)
-    plt.show()
+
+    # Try to show the plot interactively
+    try:
+        plt.show()
+    except Exception as e:
+        print(f"Could not display plot interactively: {e}")
+        print(
+            "Plot saved as 'adc_scatter_plot.png' - you can open it with an image viewer"
+        )
+
+    plt.close()  # Close the figure to free memory
 
     print("Scatter plot created and saved as 'adc_scatter_plot.png'")
 
@@ -176,6 +209,7 @@ def main():
     mean_df = calculate_side_means(df)
 
     # Create ADC scatter plot
+    matplotlib.use("TkAgg")  # or 'Qt5Agg' if you have PyQt5 installed
     create_adc_scatter_plot(mean_df)
 
     # Optional: Save the results to a new CSV file
