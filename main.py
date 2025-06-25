@@ -3,11 +3,15 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
+from pathlib import Path
 
 
 def load_data():
+    # Define data path using pathlib
+    data_path = Path("data") / "vasculitis.data.csv"
+
     # Read the CSV file with semicolon as separator
-    df = pd.read_csv("data/vasculitis.data.csv", sep=";", comment="/")
+    df = pd.read_csv(data_path, sep=";", comment="/")
     # Remove empty columns (those with no column name)
     df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
 
@@ -108,6 +112,68 @@ def create_violin_plot(
         )
 
 
+def perform_significance_test(healthy_data, disease_data):
+    """Perform statistical test to compare healthy vs disease groups.
+
+    Returns:
+        tuple: (p_value, significance_level) where significance_level is:
+               '***' for p < 0.001
+               '**' for p < 0.01
+               '*' for p < 0.05
+               'ns' for not significant
+    """
+    # Use Mann-Whitney U test (non-parametric alternative to t-test)
+    # This is appropriate for comparing distributions that may not be normal
+    stat, p_value = stats.mannwhitneyu(healthy_data, disease_data)
+
+    # Determine significance level
+    if p_value < 0.001:
+        return p_value, "***"
+    elif p_value < 0.01:
+        return p_value, "**"
+    elif p_value < 0.05:
+        return p_value, "*"
+    else:
+        return p_value, "ns"
+
+
+def add_significance_indicator(
+    ax, x1, x2, y, significance, text_y_offset=0.02, line_height=0.01
+):
+    """Add a significance indicator (line and star) between two groups.
+
+    Args:
+        ax: The matplotlib axis to add the indicator to
+        x1: x-coordinate of the first group
+        x2: x-coordinate of the second group
+        y: y-coordinate for the top of the line
+        significance: The significance marker ('*', '**', '***', or 'ns')
+        text_y_offset: Vertical offset for the significance text
+        line_height: Height of the vertical portions of the bracket
+    """
+    # Don't add indicator for non-significant results
+    if significance == "ns":
+        return
+
+    # Draw the horizontal line
+    ax.plot([x1, x2], [y, y], color="black", linewidth=1)
+
+    # Draw the vertical end caps
+    ax.plot([x1, x1], [y - line_height, y], color="black", linewidth=1)
+    ax.plot([x2, x2], [y - line_height, y], color="black", linewidth=1)
+
+    # Add the significance text
+    text_x = (x1 + x2) / 2
+    ax.text(
+        text_x,
+        y + text_y_offset,
+        significance,
+        horizontalalignment="center",
+        verticalalignment="bottom",
+        fontsize=12,
+    )
+
+
 def create_adc_scatter_plot(mean_df):
     # Keep original groups but rename 'control' to 'healthy' for clarity
     mean_df["display_group"] = mean_df["group"].apply(
@@ -123,12 +189,12 @@ def create_adc_scatter_plot(mean_df):
     plot_df = mean_df[mean_df["display_group"].isin(["healthy", "vasc", "rpgn"])]
 
     # Set up the figure
-    fig, ax = plt.subplots(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(8, 6))  # Reduced width from 12 to 8
 
     # Define positions for the groups on x-axis (healthy and disease only)
     positions = {
-        "cortex": {"healthy": 1, "disease": 2},
-        "medulla": {"healthy": 4, "disease": 5},
+        "cortex": {"healthy": 1, "disease": 1.5},  # Reduced from 2 to 1.5
+        "medulla": {"healthy": 2.5, "disease": 3},  # Reduced from 3.5,4.5 to 2.5,3
     }
 
     # Define colors for each original group
@@ -137,6 +203,9 @@ def create_adc_scatter_plot(mean_df):
         "vasc": "#FF7F50",  # Coral/light red-orange
         "rpgn": "#007fbf",  # Sea green/petrol blue
     }
+
+    # Store data for significance testing
+    significance_data = {}
 
     # Plot each group with horizontal jitter
     for roi in ["cortex", "medulla"]:
@@ -167,10 +236,17 @@ def create_adc_scatter_plot(mean_df):
                 x_offset=0.05,
             )
 
+            # Store healthy data for significance testing
+            significance_data[roi] = {"healthy": healthy_data["adc"].values}
+
         # Plot disease groups - scatter on left, violin on right
         combined_disease_data = plot_df[
             (plot_df["roi"] == roi) & (plot_df["position_group"] == "disease")
         ]
+
+        # Store combined disease data for significance testing
+        if len(combined_disease_data) > 0:
+            significance_data[roi]["disease"] = combined_disease_data["adc"].values
 
         # Create scatter plots for individual disease groups
         for disease in ["vasc", "rpgn"]:
@@ -200,36 +276,96 @@ def create_adc_scatter_plot(mean_df):
                 x_offset=0.05,
             )
 
+    # Add significance indicators for each region
+    y_max = plot_df["adc"].max()
+    y_range = plot_df["adc"].max() - plot_df["adc"].min()
+
+    # Calculate positions for significance indicators
+    for roi in ["cortex", "medulla"]:
+        if (
+            roi in significance_data
+            and "healthy" in significance_data[roi]
+            and "disease" in significance_data[roi]
+        ):
+            # Perform statistical test
+            p_value, sig_marker = perform_significance_test(
+                significance_data[roi]["healthy"], significance_data[roi]["disease"]
+            )
+
+            # Only add indicator if there is significance
+            if sig_marker != "ns":
+                # Calculate y position for the indicator (above the highest point)
+                y_pos = y_max + 0.05 * y_range
+
+                # Print significance test results
+                print(
+                    f"{roi.capitalize()} - Healthy vs. Disease: p={p_value:.4f} {sig_marker}"
+                )
+
+                # Add the significance indicator
+                add_significance_indicator(
+                    ax=ax,
+                    x1=positions[roi]["healthy"],
+                    x2=positions[roi]["disease"],
+                    y=y_pos,
+                    significance=sig_marker,
+                    text_y_offset=0.02 * y_range,
+                    line_height=0.01 * y_range,
+                )
+
     # Customize the plot
     ax.set_ylabel("ADC Values (x10^-6 mm²/s)")
     ax.set_title("ADC Values by Region and Group")
 
     # Set x-ticks and labels
-    ax.set_xticks([1.5, 4.5])
+    ax.set_xticks([1.25, 2.75])  # Centered between the groups
     ax.set_xticklabels(["Cortex", "Medulla"])
 
     # Add a legend with custom ordering
     ax.legend(title="Groups")
 
+    # Remove the top and right spines to create a cleaner look
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    # Optional: Make the bottom and left spines a bit thinner
+    ax.spines["bottom"].set_linewidth(0.5)
+    ax.spines["left"].set_linewidth(0.5)
+
+    # Ensure y-axis extends high enough to show significance indicators
+    if "cortex" in significance_data or "medulla" in significance_data:
+        ax.set_ylim(top=y_max + 0.15 * y_range)
+
     # Show grid
-    ax.grid(True, linestyle="--", alpha=0.7)
+    # ax.grid(True, linestyle="--", alpha=0.7)
 
     # Save and optionally show the plot
     plt.tight_layout()
-    plt.savefig("adc_scatter_plot.png", dpi=300)
+
+    # Create the output directory if it doesn't exist using pathlib
+    output_dir = Path("out")
+    output_dir.mkdir(exist_ok=True)
+
+    # Define output file paths
+    png_path = output_dir / "adc_scatter_plot.png"
+    svg_path = output_dir / "adc_scatter_plot.svg"
+
+    # Save in both PNG and SVG formats
+    plt.savefig(png_path, dpi=300)
+    plt.savefig(svg_path, format="svg")
 
     # Try to show the plot interactively
     try:
         plt.show()
     except Exception as e:
         print(f"Could not display plot interactively: {e}")
-        print(
-            "Plot saved as 'adc_scatter_plot.png' - you can open it with an image viewer"
-        )
+        print(f"Plot saved as '{png_path}' and '{svg_path}'")
 
     plt.close()  # Close the figure to free memory
 
-    print("Scatter plot created and saved as 'adc_scatter_plot.png'")
+    print(f"Scatter plot created and saved in the '{output_dir}' directory as:")
+    print(f"- {png_path.name} (raster format)")
+    print(f"- {svg_path.name} (vector format)")
 
 
 def main():
@@ -244,7 +380,8 @@ def main():
     create_adc_scatter_plot(mean_df)
 
     # Optional: Save the results to a new CSV file
-    # mean_df.to_csv('data/side_means.csv', index=False)
+    # output_path = Path("data") / "side_means.csv"
+    # mean_df.to_csv(output_path, index=False)
 
 
 if __name__ == "__main__":
