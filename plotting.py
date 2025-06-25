@@ -335,47 +335,47 @@ def create_parameter_scatter_plot(plot_df, parameter="adc", include_control=True
                         text_y_offset=0.02 * y_range,
                         line_height=0.01 * y_range,
                     )
-        else:
-            # Test between disease groups
-            if (
-                roi in significance_data
-                and "vasc" in significance_data[roi]
-                and "rpgn" in significance_data[roi]
-                and len(significance_data[roi]["vasc"]) > 0
-                and len(significance_data[roi]["rpgn"]) > 0
-            ):
-                # Perform statistical test between disease groups
-                p_value, sig_marker = perform_significance_test(
-                    significance_data[roi]["vasc"], significance_data[roi]["rpgn"]
-                )
-
-                # Only add indicator if there is significance
-                if sig_marker != "ns":
-                    # Calculate y position for the indicator (above the highest point)
-                    y_pos = y_max + 0.05 * y_range
-
-                    # Print significance test results
-                    print(
-                        f"{roi.capitalize()} - VASC vs. RPGN ({parameter.upper()}): p={p_value:.4f} {sig_marker}"
+            else:
+                # Test between disease groups
+                if (
+                    roi in significance_data
+                    and "vasc" in significance_data[roi]
+                    and "rpgn" in significance_data[roi]
+                    and len(significance_data[roi]["vasc"]) > 0
+                    and len(significance_data[roi]["rpgn"]) > 0
+                ):
+                    # Perform statistical test between disease groups
+                    p_value, sig_marker = perform_significance_test(
+                        significance_data[roi]["vasc"], significance_data[roi]["rpgn"]
                     )
 
-                    # Since we only have one x-position per region now, we'll add a small offset for the significance bar
-                    x_offset = 0.1
+                    # Only add indicator if there is significance
+                    if sig_marker != "ns":
+                        # Calculate y position for the indicator (above the highest point)
+                        y_pos = y_max + 0.05 * y_range
 
-                    # Add the significance indicator
-                    add_significance_indicator(
-                        ax=ax,
-                        x1=positions[roi]["disease"] - x_offset,
-                        x2=positions[roi]["disease"] + x_offset,
-                        y=y_pos,
-                        significance=sig_marker,
-                        text_y_offset=0.02 * y_range,
-                        line_height=0.01 * y_range,
-                    )
+                        # Print significance test results
+                        print(
+                            f"{roi.capitalize()} - VASC vs. RPGN ({parameter.upper()}): p={p_value:.4f} {sig_marker}"
+                        )
+
+                        # Since we only have one x-position per region now, we'll add a small offset for the significance bar
+                        x_offset = 0.1
+
+                        # Add the significance indicator
+                        add_significance_indicator(
+                            ax=ax,
+                            x1=positions[roi]["disease"] - x_offset,
+                            x2=positions[roi]["disease"] + x_offset,
+                            y=y_pos,
+                            significance=sig_marker,
+                            text_y_offset=0.02 * y_range,
+                            line_height=0.01 * y_range,
+                        )
 
     # Customize the plot
     ax.set_ylabel(parameter_info[parameter]["ylabel"])
-    title_suffix = " by Region and Group" if include_control else " by Region"
+    title_suffix = " by Region and Group"
     ax.set_title(f"{parameter_info[parameter]['title']}{title_suffix}")
 
     # Set x-ticks and labels
@@ -516,25 +516,71 @@ def create_all_parameters_plot(plot_df, include_control=True):
 
             # Create scatter plots for individual disease groups
             for disease in ["vasc", "rpgn"]:
-                disease_data = plot_df[
-                    (plot_df["roi"] == roi) & (plot_df["display_group"] == disease)
-                ]
+                # When combining disease groups without control, we need to color points by original group
+                # but use a single display label for all disease
+                disease_data = plot_df[(plot_df["roi"] == roi)]
                 if len(disease_data) > 0:
-                    create_scatter_plot(
-                        ax=ax,
-                        data=disease_data[parameter],
-                        x_position=positions[roi]["disease"],
-                        color=colors[disease],
-                        label=disease if roi == "cortex" and idx == 0 else None,
-                        jitter_range=0.05,
-                        x_offset=-0.05,
-                    )
+                    # For coloring purposes, check the original group if it exists
+                    if "original_group" in disease_data.columns:
+                        # Group by original group to preserve coloring
+                        for orig_group in disease_data["original_group"].unique():
+                            if orig_group in ["vasc", "rpgn"]:
+                                group_data = disease_data[
+                                    disease_data["original_group"] == orig_group
+                                ]
+                                create_scatter_plot(
+                                    ax=ax,
+                                    data=group_data[parameter],
+                                    x_position=positions[roi]["disease"],
+                                    color=colors[orig_group],
+                                    label=(
+                                        orig_group
+                                        if roi == "cortex" and idx == 0
+                                        else None
+                                    ),
+                                    jitter_range=0.05,
+                                    x_offset=-0.05,
+                                )
+                    else:
+                        # No original group, use a generic color for all disease
+                        create_scatter_plot(
+                            ax=ax,
+                            data=disease_data[parameter],
+                            x_position=positions[roi]["disease"],
+                            color="#6a5acd",  # Purple for combined disease
+                            label="disease" if roi == "cortex" and idx == 0 else None,
+                            jitter_range=0.05,
+                            x_offset=-0.05,
+                        )
 
-                    # Store disease data for possible significance testing between disease groups
-                    if not include_control:
-                        if roi not in significance_data:
-                            significance_data[roi] = {}
-                        significance_data[roi][disease] = disease_data[parameter].values
+                    # Store combined disease data for significance testing
+                    if roi not in significance_data:
+                        significance_data[roi] = {}
+                    significance_data[roi]["disease"] = disease_data[parameter].values
+            else:
+                # Create scatter plots for individual disease groups
+                for disease in ["vasc", "rpgn"]:
+                    disease_data = plot_df[
+                        (plot_df["roi"] == roi) & (plot_df["display_group"] == disease)
+                    ]
+                    if len(disease_data) > 0:
+                        create_scatter_plot(
+                            ax=ax,
+                            data=disease_data[parameter],
+                            x_position=positions[roi]["disease"],
+                            color=colors[disease],
+                            label=disease if roi == "cortex" and idx == 0 else None,
+                            jitter_range=0.05,
+                            x_offset=-0.05,
+                        )
+
+                        # Store disease data for possible significance testing between disease groups
+                        if not include_control:
+                            if roi not in significance_data:
+                                significance_data[roi] = {}
+                            significance_data[roi][disease] = disease_data[
+                                parameter
+                            ].values
 
             # Create violin plot for combined disease groups
             if len(combined_disease_data) > 0:
@@ -653,7 +699,7 @@ def create_all_parameters_plot(plot_df, include_control=True):
             ax.set_ylim(top=y_max + 0.15 * y_range)
 
     # Add an overall title
-    title_suffix = " by Region and Group" if include_control else " by Region"
+    title_suffix = " by Region and Group"
     fig.suptitle(f"Comparison of All Parameters{title_suffix}", fontsize=16, y=0.98)
 
     # Adjust layout
@@ -665,9 +711,10 @@ def create_all_parameters_plot(plot_df, include_control=True):
     output_dir.mkdir(exist_ok=True)
 
     # Define output file paths
-    control_suffix = "_with_control" if include_control else "_no_control"
-    png_path = output_dir / f"all_parameters_plot{control_suffix}.png"
-    svg_path = output_dir / f"all_parameters_plot{control_suffix}.svg"
+    filename_suffix = "_with_control"
+
+    png_path = output_dir / f"all_parameters_plot{filename_suffix}.png"
+    svg_path = output_dir / f"all_parameters_plot{filename_suffix}.svg"
 
     # Save in both PNG and SVG formats
     plt.savefig(png_path, dpi=300)

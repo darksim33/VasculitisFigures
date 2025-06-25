@@ -68,27 +68,17 @@ def prepare_data_for_plotting(mean_df, include_control=True):
     Returns:
         DataFrame: Data ready for plotting
     """
-    if include_control:
-        # Keep original groups but rename 'control' to 'healthy' for clarity
-        mean_df["display_group"] = mean_df["group"].apply(
-            lambda x: "healthy" if x == "control" else x
-        )
+    # Keep original groups but rename 'control' to 'healthy' for clarity
+    mean_df["display_group"] = mean_df["group"].apply(
+        lambda x: "healthy" if x == "control" else x
+    )
 
-        # Create a combined disease category while preserving original groups for coloring
-        mean_df["position_group"] = mean_df["group"].apply(
-            lambda x: "healthy" if x == "control" else "disease"
-        )
+    # Create a combined disease category while preserving original groups for coloring
+    mean_df["position_group"] = mean_df["group"].apply(
+        lambda x: "healthy" if x == "control" else "disease"
+    )
 
-        # Filter to include only the groups we want
-        plot_df = mean_df[mean_df["display_group"].isin(["healthy", "vasc", "rpgn"])]
-    else:
-        # Filter out the 'control' group completely
-        plot_df = mean_df[~mean_df["group"].isin(["control"])]
-
-        # Add a group identifier for positioning
-        plot_df["position_group"] = "disease"
-
-        # Keep the original display group names for the legend
-        plot_df["display_group"] = plot_df["group"]
+    # Filter to include only the groups we want
+    plot_df = mean_df[mean_df["display_group"].isin(["healthy", "vasc", "rpgn"])]
 
     return plot_df
