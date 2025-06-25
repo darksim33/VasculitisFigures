@@ -62,22 +62,49 @@ def create_scatter_plot(
 def create_violin_plot(
     ax, data, x_position, color, alpha=0.3, scaling=0.3, x_offset=0.05
 ):
-    """Create a half violin plot at the specified position."""
+    """Create a half violin plot at the specified position with extremely smooth ends."""
     if len(data) > 0:
-        kde = stats.gaussian_kde(data)
-        data_range = np.linspace(data.min(), data.max(), 100)
-        density = kde(data_range)
+        # Calculate data range with padding for smoother ends
+        data_range = max(data) - min(data)
+        min_val = min(data) - data_range * 0.1  # 10% padding
+        max_val = max(data) + data_range * 0.1  # 10% padding
+
+        # Create high-resolution data range
+        x_points = np.linspace(min_val, max_val, 200)
+
+        # Generate smooth KDE
+        kde = stats.gaussian_kde(
+            data, bw_method="scott"
+        )  # Scott's rule often works well
+        density = kde(x_points)
+
+        # Create smooth tapering with cosine function for perfect continuity
+        # This ensures no abrupt transitions at junction points
+
+        # Calculate taper regions (20% at top and bottom)
+        bottom_points = int(len(x_points) * 0.2)
+        top_points = int(len(x_points) * 0.2)
+
+        # Create smooth tapering functions using cosine (perfect for smooth transitions)
+        # Cosine goes from -1 to 1, so we transform to 0 to 1
+        bottom_taper = (1 - np.cos(np.linspace(0, np.pi, bottom_points))) / 2
+        top_taper = (1 + np.cos(np.linspace(0, np.pi, top_points))) / 2
+
+        # Apply the tapering
+        density[:bottom_points] *= bottom_taper
+        density[-top_points:] *= top_taper
 
         # Scale the density
         density = density / density.max() * scaling
 
-        # Plot the half violin
+        # Plot the half violin with interpolation for smooth rendering
         ax.fill_betweenx(
-            data_range,
-            x_position + x_offset,  # Start from center-right
-            x_position + x_offset + density,  # Extend right
+            x_points,
+            x_position + x_offset,
+            x_position + x_offset + density,
             color=color,
             alpha=alpha,
+            interpolate=True,  # Enable interpolation for smoother curves
         )
 
 
@@ -105,7 +132,11 @@ def create_adc_scatter_plot(mean_df):
     }
 
     # Define colors for each original group
-    colors = {"healthy": "green", "vasc": "orange", "rpgn": "blue"}
+    colors = {
+        "healthy": "green",
+        "vasc": "#FF7F50",  # Coral/light red-orange
+        "rpgn": "#007fbf",  # Sea green/petrol blue
+    }
 
     # Plot each group with horizontal jitter
     for roi in ["cortex", "medulla"]:
@@ -163,7 +194,7 @@ def create_adc_scatter_plot(mean_df):
                 ax=ax,
                 data=combined_disease_data["adc"],
                 x_position=positions[roi]["disease"],
-                color="grey",
+                color="#6a5acd",  # Light violet/thistle color
                 alpha=0.3,
                 scaling=0.3,
                 x_offset=0.05,
