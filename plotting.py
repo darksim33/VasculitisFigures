@@ -141,10 +141,13 @@ def get_parameter_info():
         dict: Information for each parameter
     """
     return {
-        "adc": {"title": "ADC Values", "ylabel": "ADC Values (x10^-6 mm²/s)"},
-        "fa": {"title": "FA Values", "ylabel": "FA Values (dimensionless)"},
-        "asl": {"title": "ASL Values", "ylabel": "ASL Values (ml/100g/min)"},
-        "t2star": {"title": "T2* Values", "ylabel": "T2* Values (ms)"},
+        "adc": {
+            "title": "ADC Values",
+            "ylabel": r"ADC [$\times 10^{-6}$ mm²/s]",
+        },
+        "fa": {"title": "FA Values", "ylabel": "FA [a.u.]"},
+        "asl": {"title": "ASL Values", "ylabel": "ASL [ml/100g/min]"},
+        "t2star": {"title": "T2* Values", "ylabel": "T2* [ms]"},
     }
 
 
@@ -392,7 +395,9 @@ def add_significance_indicators_to_plot(
         ax.set_ylim(top=y_max + 0.15 * y_range)
 
 
-def customize_parameter_plot(ax, parameter_info, parameter, include_control=True):
+def customize_parameter_plot(
+    ax, parameter_info, parameter, include_control=True, plot_title=True
+):
     """
     Customize the appearance of the parameter plot.
 
@@ -401,11 +406,13 @@ def customize_parameter_plot(ax, parameter_info, parameter, include_control=True
         parameter_info: Dictionary with parameter display information
         parameter: Parameter being plotted
         include_control: Whether control group is included
+        plot_title: Whether to display the plot title
     """
     # Customize the plot
     ax.set_ylabel(parameter_info[parameter]["ylabel"])
     title_suffix = " by Region and Group"
-    ax.set_title(f"{parameter_info[parameter]['title']}{title_suffix}")
+    if plot_title:
+        ax.set_title(f"{parameter_info[parameter]['title']}{title_suffix}")
 
     # Set x-ticks and labels
     if include_control:
@@ -538,13 +545,18 @@ def create_all_parameters_figure(plot_df, include_control=True):
 
         # Customize the plot appearance (with smaller title and no legend for non-first subplots)
         customize_subplot_appearance(
-            ax, parameter_info, parameter, include_control, show_legend=(idx == 0)
+            ax,
+            parameter_info,
+            parameter,
+            include_control,
+            show_legend=(idx == 0),
+            show_title=False,
         )
 
     # Add an overall title
-    fig.suptitle(
-        "Comparison of All Parameters by Region and Group", fontsize=16, y=0.98
-    )
+    # fig.suptitle(
+    #     "Comparison of All Parameters by Region and Group", fontsize=16, y=0.98
+    # )
 
     # Adjust layout
     plt.tight_layout()
@@ -556,7 +568,14 @@ def create_all_parameters_figure(plot_df, include_control=True):
     return fig
 
 
-def customize_subplot_appearance(ax, parameter_info, parameter, include_control=True, show_legend=True):
+def customize_subplot_appearance(
+    ax,
+    parameter_info,
+    parameter,
+    include_control=True,
+    show_legend=True,
+    show_title=True,
+):
     """
     Customize the appearance of a subplot for a specific parameter.
 
@@ -569,7 +588,8 @@ def customize_subplot_appearance(ax, parameter_info, parameter, include_control=
     """
     # Customize the plot
     ax.set_ylabel(parameter_info[parameter]["ylabel"])
-    ax.set_title(parameter_info[parameter]["title"])
+    if show_title:
+        ax.set_title(parameter_info[parameter]["title"])
 
     # Set x-ticks and labels
     if include_control:
@@ -621,7 +641,9 @@ def save_combined_figure(fig, include_control=True):
 
     plt.close()  # Close the figure to free memory
 
-    print(f"Combined figure with all parameters created and saved in the '{output_dir}' directory as:")
+    print(
+        f"Combined figure with all parameters created and saved in the '{output_dir}' directory as:"
+    )
     print(f"- {png_path.name} (raster format)")
     print(f"- {svg_path.name} (vector format)")
 

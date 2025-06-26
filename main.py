@@ -27,7 +27,9 @@ def main():
     for i, param in enumerate(parameters, 1):
         print(f"{i}. {param.upper()}")
 
-    choice = input("\nEnter parameter numbers to plot (comma-separated, or 'all'): ")
+    choice = input(
+        "\nEnter parameter numbers to plot (comma-separated, or 'all', or 'combined'): "
+    )
 
     if choice.lower() == "all":
         selected_params = parameters
