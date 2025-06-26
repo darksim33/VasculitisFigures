@@ -68,6 +68,8 @@ def prepare_data_for_plotting(mean_df, include_control=True):
     Returns:
         DataFrame: Data ready for plotting
     """
+    mean_df = mean_df[mean_df["group"] != "control"]
+
     # Keep original groups but rename 'control' to 'healthy' for clarity
     mean_df["display_group"] = mean_df["group"].apply(
         lambda x: "healthy" if x == "control" else x
@@ -75,7 +77,7 @@ def prepare_data_for_plotting(mean_df, include_control=True):
 
     # Create a combined disease category while preserving original groups for coloring
     mean_df["position_group"] = mean_df["group"].apply(
-        lambda x: "healthy" if x == "control" else "disease"
+        lambda x: "healthy" if x in ("control", "healthy") else "disease"
     )
 
     # Filter to include only the groups we want
