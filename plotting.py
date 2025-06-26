@@ -3,6 +3,29 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 from pathlib import Path
+import matplotlib.font_manager as fm
+
+# Set up the Open Sans font for matplotlib
+def set_font_properties():
+    """Set up Open Sans font for matplotlib"""
+    # Try to find Open Sans in the system
+    font_files = fm.findSystemFonts(fontpaths=None, fontext="ttf")
+    open_sans_fonts = [f for f in font_files if "opensans" in f.lower() or "open-sans" in f.lower()]
+
+    # If Open Sans is found, use it
+    if open_sans_fonts:
+        open_sans_regular = open_sans_fonts[0]
+        fm.fontManager.addfont(open_sans_regular)
+        matplotlib.rcParams['font.family'] = 'sans-serif'
+        matplotlib.rcParams['font.sans-serif'] = ['Open Sans'] + matplotlib.rcParams['font.sans-serif']
+    else:
+        # Fallback to a common sans-serif font if Open Sans is not available
+        matplotlib.rcParams['font.family'] = 'sans-serif'
+
+    # Set all text to be bold by default
+    matplotlib.rcParams['font.weight'] = 'bold'
+    matplotlib.rcParams['axes.titleweight'] = 'bold'
+    matplotlib.rcParams['axes.labelweight'] = 'bold'
 
 
 def create_scatter_plot(
@@ -143,7 +166,7 @@ def get_parameter_info():
     return {
         "adc": {
             "title": "ADC Values",
-            "ylabel": r"ADC [$\times 10^{-6}$ mm²/s]",
+            "ylabel": r"ADC [$\bf{\times 10^{-6}}$ mm²/s]",
         },
         "fa": {"title": "FA Values", "ylabel": "FA [a.u.]"},
         "asl": {"title": "ASL Values", "ylabel": "ASL [ml/100g/min]"},
@@ -228,7 +251,7 @@ def plot_groups_with_significance(
                     data=healthy_data[parameter],
                     x_position=positions[roi]["healthy"],
                     color=colors["healthy"],
-                    label="healthy" if roi == "cortex" else None,
+                    label="Healthy" if roi == "cortex" else None,
                     jitter_range=0.05,
                     x_offset=-0.05,
                 )
@@ -274,7 +297,7 @@ def plot_groups_with_significance(
                     data=disease_data[parameter],
                     x_position=positions[roi]["disease"],
                     color=colors[disease],
-                    label=disease if roi == "cortex" else None,
+                    label=("Vasculitis" if disease == "vasc" else "Vasculitis with RPGN") if roi == "cortex" else None,
                     jitter_range=0.05,
                     x_offset=-0.05,
                 )
@@ -335,7 +358,7 @@ def add_significance_indicators_to_plot(
                 # Only add indicator if there is significance
                 if sig_marker != "ns":
                     # Calculate y position for the indicator (above the highest point)
-                    y_pos = y_max + 0.05 * y_range
+                    y_pos = y_max + 0.1 * y_range
 
                     # Print significance test results
                     print(
@@ -409,20 +432,27 @@ def customize_parameter_plot(
         plot_title: Whether to display the plot title
     """
     # Customize the plot
-    ax.set_ylabel(parameter_info[parameter]["ylabel"])
+    ax.set_ylabel(parameter_info[parameter]["ylabel"], fontweight='bold')
     title_suffix = " by Region and Group"
     if plot_title:
-        ax.set_title(f"{parameter_info[parameter]['title']}{title_suffix}")
+        ax.set_title(f"{parameter_info[parameter]['title']}{title_suffix}", fontweight='bold')
 
     # Set x-ticks and labels
     if include_control:
         ax.set_xticks([1.25, 2.75])  # Centered between the groups
     else:
         ax.set_xticks([1, 2.5])  # Centered at the positions
-    ax.set_xticklabels(["Cortex", "Medulla"])
+    ax.set_xticklabels(["Cortex", "Medulla"], fontweight='bold')
+
+    # Make y-tick labels bold
+    for tick in ax.get_yticklabels():
+        tick.set_fontweight('bold')
 
     # Add a legend with custom ordering
-    ax.legend(title="Groups")
+    legend = ax.legend(title="Groups")
+    plt.setp(legend.get_title(), fontweight='bold')
+    for text in legend.get_texts():
+        text.set_fontweight('bold')
 
     # Remove the top and right spines to create a cleaner look
     ax.spines["top"].set_visible(False)
@@ -480,6 +510,9 @@ def create_parameter_scatter_plot(plot_df, parameter="adc", include_control=True
         parameter: Parameter to plot ("adc", "fa", "asl", or "t2star")
         include_control: Whether to include the control group
     """
+    # Set up font properties
+    set_font_properties()
+
     # Parameter display information
     parameter_info = get_parameter_info()
 
@@ -517,6 +550,9 @@ def create_all_parameters_figure(plot_df, include_control=True):
         plot_df: DataFrame with the data prepared for plotting
         include_control: Whether to include the control group
     """
+    # Set up font properties
+    set_font_properties()
+
     # Parameter display information
     parameter_info = get_parameter_info()
     parameters = ["adc", "fa", "asl", "t2star"]
@@ -528,6 +564,9 @@ def create_all_parameters_figure(plot_df, include_control=True):
     # Set up the figure with subplots
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     axes = axes.flatten()  # Flatten to easily iterate
+
+    # Track handles and labels for the legend
+    handles, labels = None, None
 
     # Plot each parameter in its own subplot
     for idx, parameter in enumerate(parameters):
@@ -543,24 +582,37 @@ def create_all_parameters_figure(plot_df, include_control=True):
             ax, plot_df, parameter, positions, significance_data, include_control
         )
 
-        # Customize the plot appearance (with smaller title and no legend for non-first subplots)
+        # Customize the plot appearance (with smaller title and no legend for subplots)
         customize_subplot_appearance(
             ax,
             parameter_info,
             parameter,
             include_control,
-            show_legend=(idx == 0),
+            show_legend=False,  # No legend for individual subplots
             show_title=False,
         )
+
+        # Get the handles and labels from the first subplot for the legend
+        if idx == 0:
+            handles, labels = ax.get_legend_handles_labels()
 
     # Add an overall title
     # fig.suptitle(
     #     "Comparison of All Parameters by Region and Group", fontsize=16, y=0.98
     # )
 
+    # Add a single legend at the bottom of the figure
+    if handles and labels:
+        legend = fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, 0.03),
+                  title="Groups", ncol=3, frameon=False)
+        # Make legend text and title bold
+        plt.setp(legend.get_title(), fontweight='bold')
+        for text in legend.get_texts():
+            text.set_fontweight('bold')
+
     # Adjust layout
     plt.tight_layout()
-    plt.subplots_adjust(top=0.92)  # Make room for the suptitle
+    plt.subplots_adjust(bottom=0.12)  # Make room for the legend at the bottom
 
     # Save the combined figure
     save_combined_figure(fig, include_control)
@@ -587,20 +639,27 @@ def customize_subplot_appearance(
         show_legend: Whether to show the legend on this subplot
     """
     # Customize the plot
-    ax.set_ylabel(parameter_info[parameter]["ylabel"])
+    ax.set_ylabel(parameter_info[parameter]["ylabel"], fontweight='bold')
     if show_title:
-        ax.set_title(parameter_info[parameter]["title"])
+        ax.set_title(parameter_info[parameter]["title"], fontweight='bold')
 
     # Set x-ticks and labels
     if include_control:
         ax.set_xticks([1.25, 2.75])  # Centered between the groups
     else:
         ax.set_xticks([1, 2.5])  # Centered at the positions
-    ax.set_xticklabels(["Cortex", "Medulla"])
+    ax.set_xticklabels(["Cortex", "Medulla"], fontweight='bold')
+
+    # Make y-tick labels bold
+    for tick in ax.get_yticklabels():
+        tick.set_fontweight('bold')
 
     # Add a legend only on the first subplot to avoid redundancy
     if show_legend:
-        ax.legend(title="Groups", loc="upper right")
+        legend = ax.legend(title="Groups", loc="upper right")
+        plt.setp(legend.get_title(), fontweight='bold')
+        for text in legend.get_texts():
+            text.set_fontweight('bold')
 
     # Remove the top and right spines to create a cleaner look
     ax.spines["top"].set_visible(False)
