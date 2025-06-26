@@ -4,6 +4,10 @@ import numpy as np
 from scipy import stats
 from pathlib import Path
 import matplotlib.font_manager as fm
+import pandas as pd
+
+# Container for statistical results across all parameters
+all_statistical_results = []
 
 # Set up the Open Sans font for matplotlib
 def set_font_properties():
@@ -350,6 +354,9 @@ def add_significance_indicators_to_plot(
     y_max = plot_df[parameter].max()
     y_range = plot_df[parameter].max() - plot_df[parameter].min()
 
+    # Access the global variable for storing statistics
+    global all_statistical_results
+
     # Calculate positions for significance indicators
     for roi in ["cortex", "medulla"]:
         if include_control:
@@ -363,6 +370,22 @@ def add_significance_indicators_to_plot(
                 p_value, sig_marker = perform_significance_test(
                     significance_data[roi]["healthy"], significance_data[roi]["disease"]
                 )
+
+                # Save the statistical result regardless of significance
+                result = {
+                    "Parameter": parameter.upper(),
+                    "Region": roi.capitalize(),
+                    "Comparison": "Healthy vs. Disease",
+                    "p-value": p_value,
+                    "Significance": sig_marker,
+                    "N Healthy": len(significance_data[roi]["healthy"]),
+                    "N Disease": len(significance_data[roi]["disease"]),
+                    "Mean Healthy": significance_data[roi]["healthy"].mean(),
+                    "Mean Disease": significance_data[roi]["disease"].mean(),
+                    "SD Healthy": significance_data[roi]["healthy"].std(),
+                    "SD Disease": significance_data[roi]["disease"].std(),
+                }
+                all_statistical_results.append(result)
 
                 # Only add indicator if there is significance
                 if sig_marker != "ns":
@@ -397,6 +420,22 @@ def add_significance_indicators_to_plot(
                 p_value, sig_marker = perform_significance_test(
                     significance_data[roi]["vasc"], significance_data[roi]["rpgn"]
                 )
+
+                # Save the statistical result regardless of significance
+                result = {
+                    "Parameter": parameter.upper(),
+                    "Region": roi.capitalize(),
+                    "Comparison": "Vasculitis vs. Vasculitis with RPGN",
+                    "p-value": p_value,
+                    "Significance": sig_marker,
+                    "N Vasculitis": len(significance_data[roi]["vasc"]),
+                    "N Vasculitis with RPGN": len(significance_data[roi]["rpgn"]),
+                    "Mean Vasculitis": significance_data[roi]["vasc"].mean(),
+                    "Mean Vasculitis with RPGN": significance_data[roi]["rpgn"].mean(),
+                    "SD Vasculitis": significance_data[roi]["vasc"].std(),
+                    "SD Vasculitis with RPGN": significance_data[roi]["rpgn"].std(),
+                }
+                all_statistical_results.append(result)
 
                 # Only add indicator if there is significance
                 if sig_marker != "ns":
@@ -714,6 +753,56 @@ def save_combined_figure(fig, include_control=True):
     )
     print(f"- {png_path.name} (raster format)")
     print(f"- {svg_path.name} (vector format)")
+
+
+def save_statistical_results_to_excel():
+    """
+    Save all collected statistical test results to an Excel file.
+    This should be called after all plots have been created.
+    """
+    global all_statistical_results
+
+    if not all_statistical_results:
+        print("No statistical results to save.")
+        return
+
+    # Convert to DataFrame
+    results_df = pd.DataFrame(all_statistical_results)
+
+    # Sort results by parameter, region, and comparison
+    results_df = results_df.sort_values(by=["Parameter", "Region", "Comparison"])
+
+    # Create the output directory if it doesn't exist
+    output_dir = Path("out")
+    output_dir.mkdir(exist_ok=True)
+
+    # Save to Excel
+    excel_path = output_dir / "statistical_test_results.xlsx"
+
+    # Use a writer to format the Excel file
+    with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+        # Write the main results sheet
+        results_df.to_excel(writer, sheet_name="Test Results", index=False)
+
+        # Access the workbook and the worksheet
+        workbook = writer.book
+        worksheet = writer.sheets["Test Results"]
+
+        # Auto-adjust column widths
+        for idx, col in enumerate(results_df.columns):
+            max_length = max(
+                results_df[col].astype(str).map(len).max(),
+                len(col)
+            ) + 2
+            # Excel column letters start at A
+            worksheet.column_dimensions[chr(65 + idx)].width = max_length
+
+    print(f"Statistical test results saved to {excel_path}")
+
+    # Reset the results list for potential next runs
+    all_statistical_results = []
+
+    return excel_path
 
 
 # Set the matplotlib backend (can be moved to main.py)
