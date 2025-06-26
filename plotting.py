@@ -27,6 +27,15 @@ def set_font_properties():
     matplotlib.rcParams['axes.titleweight'] = 'bold'
     matplotlib.rcParams['axes.labelweight'] = 'bold'
 
+    # Increase font sizes
+    matplotlib.rcParams['font.size'] = 12         # Default text size
+    matplotlib.rcParams['axes.titlesize'] = 14    # Title size
+    matplotlib.rcParams['axes.labelsize'] = 14    # Axis label size
+    matplotlib.rcParams['xtick.labelsize'] = 12   # x-tick label size
+    matplotlib.rcParams['ytick.labelsize'] = 12   # y-tick label size
+    matplotlib.rcParams['legend.fontsize'] = 12   # Legend font size
+    matplotlib.rcParams['legend.title_fontsize'] = 14  # Legend title font size
+
 
 def create_scatter_plot(
     ax, data, x_position, color, label, jitter_range=0.05, x_offset=-0.25
@@ -688,7 +697,7 @@ def save_combined_figure(fig, include_control=True):
     svg_path = output_dir / f"all_parameters_figure{control_suffix}.svg"
 
     # Save in both PNG and SVG formats
-    plt.savefig(png_path, dpi=300)
+    plt.savefig(png_path, dpi=600)
     plt.savefig(svg_path, format="svg")
 
     # Try to show the plot interactively
