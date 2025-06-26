@@ -74,6 +74,9 @@ def prepare_data_for_plotting(mean_df, include_control=True):
     # Filter data if needed (removing control group)
     plot_df = plot_df[plot_df["group"] != "chronical"]
 
+    # Scale FA values by 10^-3
+    plot_df["fa"] = plot_df["fa"] * 1e-3
+
     # Keep original groups but rename 'control' to 'healthy' for clarity
     plot_df.loc[:, "display_group"] = plot_df["group"].apply(
         lambda x: "healthy" if x == "control" else x
@@ -86,5 +89,10 @@ def prepare_data_for_plotting(mean_df, include_control=True):
 
     # Filter to include only the groups we want
     plot_df = plot_df[plot_df["display_group"].isin(["healthy", "vasc", "rpgn"])]
+
+    # Remove secondary time points
+    plot_df = plot_df[plot_df["id"] != "LN23b"]
+    plot_df = plot_df[plot_df["id"] != "LN33a"]
+    plot_df = plot_df[plot_df["id"] != "LN39b"]
 
     return plot_df
