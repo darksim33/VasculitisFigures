@@ -72,7 +72,7 @@ def prepare_data_for_plotting(mean_df, include_control=True):
     plot_df = mean_df.copy()
 
     # Filter data if needed (removing control group)
-    plot_df = plot_df[plot_df["group"] != "control"]
+    plot_df = plot_df[plot_df["group"] != "chronical"]
 
     # Keep original groups but rename 'control' to 'healthy' for clarity
     plot_df.loc[:, "display_group"] = plot_df["group"].apply(
