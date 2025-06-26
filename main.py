@@ -2,6 +2,7 @@ from data_handler import load_data, calculate_side_means, prepare_data_for_plott
 from plotting import (
     create_parameter_scatter_plot,
     set_matplotlib_backend,
+    create_all_parameters_figure,
 )
 
 
@@ -46,9 +47,12 @@ def main():
     )
 
     # Create plots for selected parameters
-    for param in selected_params:
-        print(f"\nGenerating plot for {param.upper()}...")
-        create_parameter_scatter_plot(plot_df, parameter=param)
+    if not choice.lower() == "combined":
+        for param in selected_params:
+            print(f"\nGenerating plot for {param.upper()}...")
+            create_parameter_scatter_plot(plot_df, parameter=param)
+    else:
+        create_all_parameters_figure(plot_df)
 
 
 if __name__ == "__main__":
