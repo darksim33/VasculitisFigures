@@ -4,6 +4,7 @@ from plotting import (
     create_parameter_scatter_plot,
     set_matplotlib_backend,
     create_all_parameters_figure,
+    save_statistical_results_to_excel,
 )
 
 
@@ -40,6 +41,8 @@ def main(args=None):
         selected_params = parameters
     elif choice.lower() == "combined":
         create_all_parameters_figure(plot_df)
+        # Save statistical results to Excel
+        save_statistical_results_to_excel()
         return
     else:
         try:
@@ -70,6 +73,9 @@ def main(args=None):
     for param in selected_params:
         print(f"\nGenerating plot for {param.upper()}...")
         create_parameter_scatter_plot(plot_df, parameter=param)
+
+    # Save statistical results to Excel after all plots are created
+    save_statistical_results_to_excel()
 
 
 if __name__ == "__main__":
