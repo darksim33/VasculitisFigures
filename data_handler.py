@@ -68,19 +68,23 @@ def prepare_data_for_plotting(mean_df, include_control=True):
     Returns:
         DataFrame: Data ready for plotting
     """
-    mean_df = mean_df[mean_df["group"] != "control"]
+    # Create a copy of the dataframe first to avoid SettingWithCopyWarning
+    plot_df = mean_df.copy()
+
+    # Filter data if needed (removing control group)
+    plot_df = plot_df[plot_df["group"] != "control"]
 
     # Keep original groups but rename 'control' to 'healthy' for clarity
-    mean_df["display_group"] = mean_df["group"].apply(
+    plot_df.loc[:, "display_group"] = plot_df["group"].apply(
         lambda x: "healthy" if x == "control" else x
     )
 
     # Create a combined disease category while preserving original groups for coloring
-    mean_df["position_group"] = mean_df["group"].apply(
+    plot_df.loc[:, "position_group"] = plot_df["group"].apply(
         lambda x: "healthy" if x in ("control", "healthy") else "disease"
     )
 
     # Filter to include only the groups we want
-    plot_df = mean_df[mean_df["display_group"].isin(["healthy", "vasc", "rpgn"])]
+    plot_df = plot_df[plot_df["display_group"].isin(["healthy", "vasc", "rpgn"])]
 
     return plot_df
