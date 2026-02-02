@@ -9,6 +9,8 @@ import pandas as pd
 # Container for statistical results across all parameters
 all_statistical_results = []
 
+BASE_FONT_SIZE = 12  # Base font size for all text elements
+
 # Set up the Open Sans font for matplotlib
 def set_font_properties():
     """Set up Open Sans font for matplotlib"""
@@ -32,13 +34,13 @@ def set_font_properties():
     matplotlib.rcParams['axes.labelweight'] = 'bold'
 
     # Increase font sizes
-    matplotlib.rcParams['font.size'] = 12         # Default text size
-    matplotlib.rcParams['axes.titlesize'] = 14    # Title size
-    matplotlib.rcParams['axes.labelsize'] = 14    # Axis label size
-    matplotlib.rcParams['xtick.labelsize'] = 12   # x-tick label size
-    matplotlib.rcParams['ytick.labelsize'] = 12   # y-tick label size
-    matplotlib.rcParams['legend.fontsize'] = 12   # Legend font size
-    matplotlib.rcParams['legend.title_fontsize'] = 14  # Legend title font size
+    matplotlib.rcParams['font.size'] = BASE_FONT_SIZE         # Default text size
+    matplotlib.rcParams['axes.titlesize'] = BASE_FONT_SIZE + 2    # Title size
+    matplotlib.rcParams['axes.labelsize'] = BASE_FONT_SIZE + 2    # Axis label size
+    matplotlib.rcParams['xtick.labelsize'] = BASE_FONT_SIZE   # x-tick label size
+    matplotlib.rcParams['ytick.labelsize'] = BASE_FONT_SIZE   # y-tick label size
+    matplotlib.rcParams['legend.fontsize'] = BASE_FONT_SIZE   # Legend font size
+    matplotlib.rcParams['legend.title_fontsize'] = BASE_FONT_SIZE + 2  # Legend title font size
 
 
 def create_scatter_plot(
@@ -165,7 +167,7 @@ def add_significance_indicator(
         significance,
         horizontalalignment="center",
         verticalalignment="bottom",
-        fontsize=12,
+        fontsize=BASE_FONT_SIZE,
     )
 
 
