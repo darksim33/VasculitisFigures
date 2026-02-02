@@ -39,15 +39,27 @@ For individual plots, you can choose specific parameters to visualize.
 
 - pandas
 - matplotlib
-- numpy
+- seaborn
 - scipy
+- openpyxl
 
 ## Installation
 
+This project uses [uv](https://github.com/astral-sh/uv) as the package manager for fast and reliable dependency management.
+
+### Install dependencies
+
+```bash
+# Sync all dependencies from pyproject.toml
+uv sync
+
+# Run the project
+uv run python main.py
+```
+
+### Alternative: Using pip
+
 ```bash
 # Install dependencies using pip
-pip install -r requirements.txt
-
-# Or using Python's newer dependency management tools
 pip install .
 ```
