@@ -9,9 +9,12 @@ dependencies = [
     "openpyxl>=3.1.5",
     "pandas>=2.3.0",
     "pathlib>=1.0.1",
+    "radimgarray",
     "scipy>=1.16.0",
     "seaborn>=0.13.2",
 ]
 
 [tool.uv]
-dev-dependencies = []
+
+[tool.uv.sources]
+radimgarray = { git = "https://github.com/darksim33/RadImgArray/" }
